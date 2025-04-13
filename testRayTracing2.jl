@@ -37,7 +37,7 @@ Pixels = normalize.(Pixels);
 println("rays are created")
 
 #LIGHT SOURCE aka SUN
-sun = [0, -4, 1]
+sun = [-2, -4, -1]
 
 #SCENE OBJECTS AND THEIR DERIVATIVES
 s1P = [7, -1, 0, 2]
@@ -64,25 +64,20 @@ end
 
 #do elementov matrik se dostopa: A[x, y]
 
-function signChange(f, vec, origin = [0, 0, 0], step = 0.3, max = 10)
+function signChange(f, vec, origin = [0.0, 0.0, 0.0], step = 0.3, max = 80)
     k = 1.1
-    stIt = 0
-    dejanskoStIt = max / step
     #dobimo dejanski vektor z upostevanjem zacetne tocke 
     prev = sign(f(vec .+ origin))
-    while ((k.*vec .+ origin)[1] <= max)
+
+    for outer k in 1.1:step:max
         now = sign(f((k.*vec) .+ origin))
+
         if now != prev
             return [((k-step).*vec) .+ origin, (k.*vec) .+ origin]
         end
         prev = now;
-        k += step
-        stIt += 1
-        if (stIt > 10000)
-            println("neki je narobe $(k.*vec .+ origin)")
-            break
-        end
     end
+    
     return -1
 end
 
@@ -100,7 +95,7 @@ function calcAngle(sun, gradient, pointOnSphere)
 
     #preveri ce na poti od tocke na objektu do vira svetlobe zadanes objekt
     for object in Objects
-        if (signChange(object[1], vecToSun, pointOnSphere, 0.1, 5) != -1) #ce zadanemo nek objekt na poti do sonca
+        if (signChange(object[1], vecToSun, pointOnSphere, 0.1, 8) != -1) #ce zadanemo nek objekt na poti do sonca
             return 0.0      #potem samo returnamo 0, ker je v senci
         end
     end
@@ -113,6 +108,109 @@ function calcAngle(sun, gradient, pointOnSphere)
         return cos(koef)
     end
 end
+
+
+function Bisection(point1, point2, F, maxit = 1000, tol=1e-6)
+    #zamenjavo tock point1 in point2 naredimo zato, ker je bisekcija napisana tako da
+    #predpostavimo da je F(point1) > 0, F(opint2) < 0 .... in ce je ravno obratno
+    #moramo zamenjati, drugace bisekcija ne bo konvergirala, ker se bodo meje narobe postavile
+    if (F(point1) < 0)
+        a = point1
+        point1 = point2
+        point2 = a
+    end
+    for i in 1:maxit
+        middle = (point1 .+ point2) ./ 2
+        oddaljenost = F(middle)
+        if (abs(oddaljenost) < tol)
+            return middle
+        end
+        if (oddaljenost < 0)
+            point2 = middle
+        else
+            point1 = middle
+        end
+    end
+    println("NO CONVERGENCE IN BISECTION")
+    
+end
+
+function difuseColor(startingPoint, F, G, step = 0.3, maxD = 5) #F je enacba objekta, G je gradient
+    
+normalVec = vec(normalize(G(startingPoint))) #zato ker G da output [x y z], mi rabimo pa [x, y, z] kar ni isto 
+#tisto ta prvo je matrika, da drugo pa array  
+    color = nothing
+    disToIntersect = 10000.0
+    intersectPt = nothing
+    for object in Objects
+        twoApproxPts = signChange(object[1], normalVec, startingPoint, step, maxD)
+        if twoApproxPts != -1
+            
+            if (norm(twoApproxPts[1] .- startingPoint) < disToIntersect)
+                disToIntersect = norm(twoApproxPts[1] .- startingPoint)
+                intersectPt = Bisection(twoApproxPts[1], twoApproxPts[2], object[1])
+
+                color = calcAngle(sun, object[2], intersectPt)
+            end
+        end
+    end
+
+    if (isnothing(intersectPt)) #ce ni presecisca, potem ne rabimo dodati nobene barve
+        return 0.0
+    end
+    #return 0.2
+    disToIntersect = norm(intersectPt .- startingPoint) #bolj tocna vrednost (izboljsana z bisekcijo)
+    koef = 1 - disToIntersect / maxD #vrednost bo med 0 in 1, saj gledamo razdaljo do 4e stran
+
+    return koef*color
+
+end
+
+b = signChange(Plane1, [-0.381, 0.26, 0.887], [6.239, -0.48, 1.775], 0.3, 80)
+
+println(b)
+Bisection(b[1], b[2], Plane1)
+println("creating image")
+
+
+for y in 1:1:CameraResolution[2]
+    for x in 1:1:CameraResolution[1]
+        ray = Pixels[x, y]
+        distanceToCamera = 1000.0
+        for object in Objects
+            twoApproxPoint = signChange(object[1], ray) #dobimo dve tocki, ena je pred objektom, druga v objektu
+            if twoApproxPoint != -1
+                if (norm(twoApproxPoint[1]) < distanceToCamera) #ce najdemo objekt ki je blizje kameri, potem tega izrisemo
+                    distanceToCamera = norm(twoApproxPoint[1])
+                    bisectionPoint = Bisection(twoApproxPoint[1], twoApproxPoint[2], object[1])
+                    #najdi kot med normalo in izvirom svetlobe
+                    color = calcAngle(sun, object[2], bisectionPoint)
+
+                    #zdaj pa narisi vektor iz normale (na objektu) in preveri ali zadane objekt
+                    #ce zadane, potem izracunaj osvetljenost tega objekta. Na podlagi njegove 
+                    #osvetljenosti in oddaljenosti od njega dodaj neko kolicino barve v to tocko
+                    addColor = difuseColor(bisectionPoint, object[1], object[2])
+                    color += addColor
+                    #popravek za barvo ce je manj od 0 ali vec od 1
+                    color = min(color, 1); color = max(0, color)
+                    img[x, y] = RGB{N0f8}(color, color , color)
+                    color += addColor
+                    (color > 1) ? color=1 : nothing #popravimo da je vedno color <= 1
+                end
+
+            end
+
+        end
+
+    end
+end
+println("done")
+save("test2.png", img)
+
+
+
+
+
 
 #USELESS PIECE OF CODE
 # function newton(F, JF, X0; tol = 1e-8, maxit = 1000)
@@ -140,58 +238,4 @@ end
 #     #println("starting point: $(X0) convergence: $(X)")
 #     return X  #izpis bo izgledal; (sol = resitev, numit = 24)
 # end
-
-function Bisection(point1, point2, F, maxit = 1000, tol=1e-6)
-    #zamenjavo tock point1 in point2 naredimo zato, ker je bisekcija napisana tako da
-    #predpostavimo da je F(point1) > 0, F(opint2) < 0 .... in ce je ravno obratno
-    #moramo zamenjati, drugace bisekcija ne bo konvergirala, ker se bodo meje narobe postavile
-    if (F(point1) < 0)
-        a = point1
-        point1 = point2
-        point2 = a
-    end
-    for i in 1:maxit
-        middle = (point1 .+ point2) ./ 2
-        oddaljenost = F(middle)
-        if (abs(oddaljenost) < tol)
-            return middle
-        end
-        if (oddaljenost < 0)
-            point2 = middle
-        else
-            point1 = middle
-        end
-    end
-    println("NO CONVERGENCE IN BISECTION")
-    
-end
-
-
-println("creating image")
-
-for y in 1:1:CameraResolution[2]
-    for x in 1:1:CameraResolution[1]
-        ray = Pixels[x, y]
-        distanceToCamera = 1000.0
-        for object in Objects
-            twoApproxPoint = signChange(object[1], ray) #dobimo dve tocki, ena je pred objektom, druga v objektu
-            if twoApproxPoint != -1
-                if (norm(twoApproxPoint[1]) < distanceToCamera) #ce najdemo objekt ki je blizje kameri, potem tega izrisemo
-                    distanceToCamera = norm(twoApproxPoint[1])
-                    bisectionPoint = Bisection(twoApproxPoint[1], twoApproxPoint[2], object[1])
-                    #najdi kot med normalo in izvirom svetlobe
-                    koef = calcAngle(sun, object[2], bisectionPoint)
-                    img[x, y] = RGB{N0f8}(koef, koef, koef)
-                end
-
-            end
-
-        end
-
-    end
-end
-println("done")
-save("test2.png", img)
-
-
 

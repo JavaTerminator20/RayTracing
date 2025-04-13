@@ -3,6 +3,12 @@ using Plots
 
 gr()
 
+a = 3
+b = 5
+c = 0
+
+(a > b) ? c=1 : nothing
+println(c)
 f1(x,y,z) = [x^2 + y^2 + z^2 - 1]
 f2(x, y) = [x^2 + y^2 - 1]
 f3(x) = sqrt(1 - x^2)
