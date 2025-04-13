@@ -5,41 +5,13 @@ using Images, ColorTypes, FileIO
 
 plotly()
 
-# origin = [0.0, 0.0, 0.0]
-
-# image_width = 800
-# image_height = 600
-
-# for i in -45:1:45
-#     angle = deg2rad(i)
-#     plot!([0, sin(angle)], [0, 0], [0, cos(angle)], color=:black) 
-#     scatter!([sin(angle)], [0], [cos(angle)], color=:red)
-# end
-
-# for j in -45:1:45
-#     angle = deg2rad(j)
-#     plot!([0, 0], [0, sin(angle)], [0, cos(angle)], color=:black)
-#     scatter!([0], [sin(angle)], [cos(angle)], color=:red)
-
-# end
-
-# for i in -45:9:45, j in -45:9:45
-#     angleLeft = deg2rad(i)
-#     angleUp = deg2rad(j)
-#     #ce za zadnjo komponento das cos(angle) dobis vektorje tko v kroznico
-#     #ce pa das nakoncu neko fiksno vrednost recimo 1 pa dobis da koncne tocke
-#     #vseh vektorjev nardijo neko ravnino
-#     plot!([0, sin(angleLeft)], [0, sin(angleUp)], [0, 1], color=:black)
-# end
-
-#display(fig1)
 
 CameraDefaultDirection = [1;0;0]
 CameraRotation = [0;0;0]
 CameraPosition = [0;0;0]
 CameraFOV = 90
 CameraAspectRatio = [4;3]
-CameraResolution = [400;300]#[800;600]
+CameraResolution = [40;30]#[800;600]
 
 Pixels = [zeros(3) for i in 1:CameraResolution[1], j in 1:CameraResolution[2]]
 
@@ -53,7 +25,6 @@ for y in 1:1:CameraResolution[2]
     end
 end
 
-#Pixels
 Pixels = normalize.(Pixels);
 
 #TESTING RAYS
@@ -63,14 +34,13 @@ Pixels = normalize.(Pixels);
 # end
 # scatter!([1], [0], [0], color=:red)
 # display(fig2)
-println("finished that")
-Pixels = normalize.(Pixels)
-
-Plane(X) = (X[1]*0 + X[2]*0 + X[3]*1 - 2)
+println("rays are created")
 
 #LIGHT SOURCE aka SUN
-sun = [0, 0, 10]
-s1P = [7, 0, -2, 3]
+sun = [0, -4, 1]
+
+#SCENE OBJECTS AND THEIR DERIVATIVES
+s1P = [7, -1, 0, 2]
 Sphere1(X) = (X[1] - s1P[1])^2 + (X[2] - s1P[2])^2 + (X[3] - s1P[3])^2 - s1P[4]^2
 GradS1(X) = [2*(X[1]-s1P[1])  2*(X[2]-s1P[2])  2*(X[3]-s1P[3])]
 
@@ -78,7 +48,10 @@ s2P = [5, 0, 2, 0.75]
 Sphere2(X) = (X[1] - s2P[1])^2 + (X[2] - s2P[2])^2 + (X[3] - s2P[3])^2 - s2P[4]^2
 GradS2(X) = [2*(X[1]-s2P[1])  2*(X[2]-s2P[2])  2*(X[3]-s2P[3])]
 
-Objects = [[Sphere2, GradS2], [Sphere1, GradS1]]
+Plane1(X) = X[1]*0 + X[2]*1 + X[3]*0 -3
+GradP1(X) = [0 -1 0]
+
+Objects = [[Sphere1, GradS1], [Plane1, GradP1]]
 
 
 bg_color = RGB{N0f8}(0.4, 0.45,0.5)  # sky blue
@@ -92,15 +65,23 @@ end
 #do elementov matrik se dostopa: A[x, y]
 
 function signChange(f, vec, origin = [0, 0, 0], step = 0.3, max = 10)
-    k = 0
+    k = 1.1
+    stIt = 0
+    dejanskoStIt = max / step
     #dobimo dejanski vektor z upostevanjem zacetne tocke 
     prev = sign(f(vec .+ origin))
-    for outer k in 1.1:step:max
+    while ((k.*vec .+ origin)[1] <= max)
         now = sign(f((k.*vec) .+ origin))
         if now != prev
             return [((k-step).*vec) .+ origin, (k.*vec) .+ origin]
         end
         prev = now;
+        k += step
+        stIt += 1
+        if (stIt > 10000)
+            println("neki je narobe $(k.*vec .+ origin)")
+            break
+        end
     end
     return -1
 end
@@ -123,6 +104,7 @@ function calcAngle(sun, gradient, pointOnSphere)
             return 0.0      #potem samo returnamo 0, ker je v senci
         end
     end
+
     #return clamp(dot(normal, vecToSun), 0.0, 1.0)
     koef = acos(dot(normal, vecToSun)); #dot product je med 0 in 1
     if (koef > (pi / 2))
@@ -160,6 +142,14 @@ end
 # end
 
 function Bisection(point1, point2, F, maxit = 1000, tol=1e-6)
+    #zamenjavo tock point1 in point2 naredimo zato, ker je bisekcija napisana tako da
+    #predpostavimo da je F(point1) > 0, F(opint2) < 0 .... in ce je ravno obratno
+    #moramo zamenjati, drugace bisekcija ne bo konvergirala, ker se bodo meje narobe postavile
+    if (F(point1) < 0)
+        a = point1
+        point1 = point2
+        point2 = a
+    end
     for i in 1:maxit
         middle = (point1 .+ point2) ./ 2
         oddaljenost = F(middle)
@@ -172,6 +162,7 @@ function Bisection(point1, point2, F, maxit = 1000, tol=1e-6)
             point1 = middle
         end
     end
+    println("NO CONVERGENCE IN BISECTION")
     
 end
 
@@ -200,7 +191,6 @@ for y in 1:1:CameraResolution[2]
     end
 end
 println("done")
-println("found: $(counter) dots")
 save("test2.png", img)
 
 
