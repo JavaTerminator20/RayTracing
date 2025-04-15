@@ -37,33 +37,40 @@ Pixels = normalize.(Pixels);
 println("rays are created")
 
 #LIGHT SOURCE aka SUN
-sun = [-10.0, -10.0, -4.0]
+sun = [-200.0, 100.0, 100.0]
+lightSources = [
+    [-50.0, 100.0, 200.0],
+    #[3.0, 2.5, 1.0],
+    #[3.0, -6.0, 0.0]
+]
+#lightSources = [5.0, 0.0, 3.0]
+lightColor = [RGB{N0f8}(1, 1, 1),RGB{N0f8}(0, 0, 1), RGB{N0f8}(0, 1, 0)]
 #sun = [-6.0, -15.0, -15.0]   
 
 #SCENE OBJECTS AND THEIR DERIVATIVES
-s1P = [7, -2, 0, 3] #light blue sphere
+s1P = [10.0, 0.0, 2.0, 4.0] #light blue sphere
 Sphere1(X) = (X[1] - s1P[1])^2 + (X[2] - s1P[2])^2 + (X[3] - s1P[3])^2 - s1P[4]^2
 GradS1(X) = [2*(X[1]-s1P[1])  2*(X[2]-s1P[2])  2*(X[3]-s1P[3])]
 
-s2P = [20, -4, 7.0, 5] #red sphere
+s2P = [5, -3.5, 2, 1] #red sphere
 Sphere2(X) = (X[1] - s2P[1])^2 + (X[2] - s2P[2])^2 + (X[3] - s2P[3])^2 - s2P[4]^2
 GradS2(X) = [2*(X[1]-s2P[1])  2*(X[2]-s2P[2])  2*(X[3]-s2P[3])]
 
-s3P = [3, 0.5, 1.5, 0.65] #green sphere
+s3P = [3, -2, -1, 0.65] #green sphere
 Sphere3(X) = (X[1] - s3P[1])^2 + (X[2] - s3P[2])^2 + (X[3] - s3P[3])^2 - s3P[4]^2
 GradS3(X) = [2*(X[1]-s3P[1])  2*(X[2]-s3P[2])  2*(X[3]-s3P[3])]
 
-s4P = [25, -13, -7.0, 6] #purple sphere
+s4P = [5, 1.5, -1, 1] #purple sphere
 Sphere4(X) = (X[1] - s4P[1])^2 + (X[2] - s4P[2])^2 + (X[3] - s4P[3])^2 - s4P[4]^2
 GradS4(X) = [2*(X[1]-s4P[1])  2*(X[2]-s4P[2])  2*(X[3]-s4P[3])]
 
-Plane1(X) = X[1]*0 + X[2]*1 + X[3]*0 -3
-GradP1(X) = [0 -1 0]
-
+Plane1(X) = X[1]*0 + X[2]*0 + X[3]*1 +3
+GradP1(X) = [0 0 1]
+# x+forward, y+down, z+left
 #objects je sestavljen tako: [Funkcija, Gradient, isReflective. color, isPassThrough]
 Objects = [
-    [Sphere1, GradS1, false, RGB{N0f8}(0,0.69,0.63), true], 
-    [Sphere2, GradS2, false, RGB{N0f8}(1,0,0), false],
+    [Sphere1, GradS1, true, RGB{N0f8}(0.5,0.5,0.5), false],  #RGB{N0f8}(0,0.69,0.63)
+    [Sphere2, GradS2, false, RGB{N0f8}(1,0,0), false],           #RGB{N0f8}(1,0,0)
     [Sphere3, GradS3, false, RGB{N0f8}(0,1,0), false],
     [Sphere4, GradS4, false, RGB{N0f8}(1.0, 0.0, 1.0), false], 
     [Plane1, GradP1, false, RGB{N0f8}(1,1,1), false]
@@ -73,8 +80,8 @@ Objects = [
 bg_color = RGB{N0f8}(0.4, 0.45,0.5)  # sky blue
 black_color = RGB{N0f8}(0, 0, 0)  # black color
 # Create image buffer
-img = Array{RGB{N0f8}}(undef, CameraResolution[1], CameraResolution[2])
-for i = 1:CameraResolution[1], j = 1:CameraResolution[2]
+img = Array{RGB{N0f8}}(undef, CameraResolution[2], CameraResolution[1])
+for i = 1:CameraResolution[2], j = 1:CameraResolution[1]
     img[i,j] = bg_color
 end
 
@@ -82,17 +89,21 @@ end
 #spreminjanje parametra max vpliva na to kako ravno bo zgledala ravnina
 #vecji kot je, bolj ravna bo
 
-function multiplyColors(color1::RGB{N0f8}, color2::RGB{N0f8})
+function multiplyColors(color1, color2)
+    color1 = RGB{N0f8}(color1)
+    color2 = RGB{N0f8}(color2)
     redC = red(color1) * red(color2)
     greenC = green(color1) * green(color2)
     blueC = blue(color1) * blue(color2)
     return RGB{N0f8}(redC, greenC, blueC)
     
 end
+
 function signChange(f, vec, origin = [0.0, 0.0, 0.0], step = 0.3, max = 40)
     k = 1.1
-    #dobimo dejanski vektor z upostevanjem zacetne tocke 
-    prev = sign(f(vec .+ origin))
+    #dobimo dejanski vektor z upostevanjem zacetne tocke
+    start = vec .* k .+ origin 
+    prev = sign(f(start))
     if (f == Sphere1)
         #println(prev)
         #println(f((k.*vec) .+ origin))
@@ -102,44 +113,62 @@ function signChange(f, vec, origin = [0.0, 0.0, 0.0], step = 0.3, max = 40)
         now = sign(f((k.*vec) .+ origin))
 
         if now != prev
-            
             return [((k-step).*vec) .+ origin, (k.*vec) .+ origin]
         end
         prev = now;
     end
-    if (f == Sphere1)
-        #println("NISMO nasli presecisce")
-    end
+    
     return -1
 end
 
 
-function calcAngle(sun, gradient, pointOnSphere)
+function calcAngle(sun, gradient, pointOnSphere, objIndex)
     normal = gradient(pointOnSphere)
     normal = normalize(normal)
+    
+    stVirov = size(lightSources)[1]
+    #factor = 1/stVirov
+    factor = 0.7
+    koeficienti = []
+    for sun in lightSources
+        #CE JE SONCE TOCKA
+        vecToSun = sun .- pointOnSphere
+        vecToSun = normalize(vecToSun)
 
-    #CE JE SONCE TOCKA
-    vecToSun = sun .- pointOnSphere
-    vecToSun = normalize(vecToSun)
+        #CE SONCE NI TOCKA AMPAK SPLOSNA SMER
+        #vecToSun = normalize(sun)
 
-    #CE SONCE NI TOCKA AMPAK SPLOSNA SMER
-    #vecToSun = normalize(sun)
-
-    #preveri ce na poti od tocke na objektu do vira svetlobe zadanes objekt
-    for object in Objects
-        if (signChange(object[1], vecToSun, pointOnSphere, 0.1, 8) != -1) #ce zadanemo nek objekt na poti do sonca
-            return 0.0      #potem samo returnamo 0, ker je v senci
+        #preveri ce na poti od tocke na objektu do vira svetlobe zadanes objekt - PREVERJANJE SENCE
+        razdaljaDoSonca = norm(pointOnSphere .- sun)
+        point_index = closestIntersec(vecToSun, 0.3, razdaljaDoSonca, pointOnSphere)
+        intersecPoint = point_index[1]
+        intersectIndex = point_index[2]
+        if (!isnothing(intersecPoint)) #ce zadanemo nek objekt na poti do sonca
+            if (intersectIndex != objIndex) #ce zadanemo nek objekti ki ni ta isti (izhodni - presecisce s samim sabo) 
+                #ce pa je ta isti, potem pa mora biti razdalja vecja od 1 da preprecimo napake
+                push!(koeficienti, 0.05) #potem samo returnamo 0, ker je v senci oz. 0.05 zradi vec virov svetlobe
+                continue
+            end
         end
+
+        koef = acos(dot(normal, vecToSun)); #dot product je med 0 in 1
+        if (koef > (pi / 2))
+            push!(koeficienti, 0.0) 
+        else
+            push!(koeficienti, cos(koef))
+        end
+
     end
 
-    #return clamp(dot(normal, vecToSun), 0.0, 1.0)
-    koef = acos(dot(normal, vecToSun)); #dot product je med 0 in 1
-    if (koef > (pi / 2))
-        return 0.0 
-    else
-        return cos(koef)
+    rezultat = RGB{N0f8}(0, 0, 0)
+    n = length(koeficienti)
+    for i in 1:1:n
+        rezultat = clamp01(rezultat + lightColor[i] * factor * koeficienti[i])
     end
+
+    return clamp01(rezultat)
 end
+
 
 
 function Bisection(point1, point2, F, maxit = 1000, tol=1e-6)
@@ -180,7 +209,7 @@ function difuseColor(startingPoint, F, G, step = 0.3, maxD = 5) #F je  objekta, 
         return 0.0
     end
 
-    color = calcAngle(sun, Objects[objIndex][2], intersectPt)
+    color = calcAngle(sun, Objects[objIndex][2], intersectPt, objIndex)
 
     #return 0.2
     disToIntersect = norm(intersectPt .- startingPoint) #bolj tocna vrednost (izboljsana z bisekcijo)
@@ -247,6 +276,10 @@ function refractRay(inputVector, ratio, pointOnObj, G) #G je gradient
    
 end
 
+function mirrorBounceColor()
+    return nothing
+end
+
 
 reflectivity = 0.5 #koliko barve odbije ogledalo. 0.2 pa je vrednost barve ogledala 0 = matte barva; 1 = glossy (fully reflective)
 
@@ -264,8 +297,8 @@ stVsehPixl = CameraResolution[1] * CameraResolution[2]
 percent = stVsehPixl / 100
 prcntCounter = 1
 println("drawing image")
-for y in 1:1:CameraResolution[2]
-    for x in 1:1:CameraResolution[1]
+for x in 1:1:CameraResolution[1]
+    for y in 1:1:CameraResolution[2]
         global counter, prcntCounter
         counter += 1
         if (counter % percent == 0)
@@ -275,128 +308,131 @@ for y in 1:1:CameraResolution[2]
 
         ray = Pixels[x, y]
 
-        point_index = closestIntersec(ray)
+        point_index = closestIntersec(ray, 0.5, 80)
         intersectPoint = point_index[1]
         objIndex = point_index[2]
+        
 
-        #------KODA ZA TO CE JE OBJEKT KI SMO GA ZADELI IZ STEKLA------------------------------------------------------------------------------
-        if (!isnothing(intersectPoint) && Objects[objIndex][5] == true)
+        #ce zadanemo neki 
+        if (!isnothing(intersectPoint) )
+            #------KODA ZA TO CE JE OBJEKT KI SMO GA ZADELI IZ PASSTHROUGH------------------------------------------------------------------------------
+            if (Objects[objIndex][5] == true)
+                #ta del preracuna reflectColor komponento (barvo ki se dobi od odbitega zarka)
+                reflectDir = reflectRay(ray, intersectPoint, Objects[objIndex][2])
+                reflect_point_index = closestIntersec(reflectDir, 1.0, 40, intersectPoint)
+                reflectPoint = reflect_point_index[1]
+                objIndex2 = reflect_point_index[2]
 
-            #ta del preracuna reflectColor komponento (barvo ki se dobi od odbitega zarka)
-            reflectDir = reflectRay(ray, intersectPoint, Objects[objIndex][2])
-            reflect_point_index = closestIntersec(reflectDir, 1.0, 40, intersectPoint)
-            reflectPoint = reflect_point_index[1]
-            objIndex2 = reflect_point_index[2]
+                reflectColor = bg_color
+                if (!isnothing(reflectPoint))
+                    lightFactor = calcAngle(lightSources, Objects[objIndex2][2], reflectPoint, objIndex2)
+                    reflectColor = multiplyColors(Objects[objIndex2][4], lightFactor)
+                end
 
-            reflectColor = bg_color
-            if (!isnothing(reflectPoint))
-                koef = calcAngle(sun, Objects[objIndex2][2], reflectPoint)
-                reflectColor = Objects[objIndex2][4] * koef
-            end
+                #ta del preracuna refractColor komponento koncne barve (barvo ki se dobi zaradi zlomljenega zarka)
+                ingoingDir = refractRay(ray, ratio, intersectPoint, Objects[objIndex][2])
+                if (isnothing(ingoingDir)) #ce se zarek ne more refraktat
+                    img[y, x] = reflectColor
+                    continue
+                end
+                
+                ingoingDir = ingoingDir ./ 5 #preprecimo da bi bil vektor vecji kot je sam objekt
+                if (Objects[objIndex][1](ingoingDir .* 1.1 .+ intersectPoint) > 0)
+                    println("vektor gleda vene iz krogle")
+                end
 
-
-            #ta del preracuna refractColor komponento koncne barve (barvo ki se dobi zaradi zlomljenega zarka)
-            ingoingDir = refractRay(ray, ratio, intersectPoint, Objects[objIndex][2])
-            if (isnothing(ingoingDir)) #ce se zarek ne more refraktat
-                img[x, y] = reflectColor
-                continue
-            end
-            
-            ingoingDir = ingoingDir ./ 5 #preprecimo da bi bil vektor vecji kot je sam objekt
-            if (Objects[objIndex][1](ingoingDir .* 1.1 .+ intersectPoint) > 0)
-                println("vektor gleda vene iz krogle")
-            end
-
-            out_point_index = closestIntersec(ingoingDir, 0.2, 100, intersectPoint)
-            outPoint = out_point_index[1] #to je tocka na objektu iz katerega pride zarek ven
-            outObjIndex = out_point_index[2]
-
-
-            if (Objects[objIndex][1](outPoint) > 1)
-                println("outTocka ni na krogli-----------------------------------")
-            end
-
-            outgoingDir = refractRay(ingoingDir, ratio, outPoint, Objects[outObjIndex][2])
-            if (isnothing(ingoingDir)) #ce se zarek ne more refraktat
-                img[x, y] = reflectColor
-                continue
-            end
-            point_index2 = closestIntersec(outgoingDir, 0.5, 40, outPoint)
-            intersectPoint2 = point_index2[1]
-            objIndex2 = point_index2[2]
-
-            refractColor = bg_color #ce ne zadanemo nobenega objekta bo refraktna barva barva ozadja, drugace pa barva objekta
-            if (!isnothing(intersectPoint2))
-                koef = calcAngle(sun, Objects[objIndex2][2], intersectPoint2)
-                refractColor = Objects[objIndex2][4] * koef
-            end
-
-            
-            #zdaj pa je treba pravilno zdruziti ti dve barvi v koncen output (neka random formula ko sm jo najdel)
-            normala = normalize(vec(Objects[objIndex][2](intersectPoint)))
-            ingoingDir = normalize(ingoingDir)
-            cosFi = clamp(dot(-ingoingDir, normala), 0.0, 1.0)
-            R0 = ((glassIOR - 1.0) / (glassIOR + 1.0))^2
-            reflect_ratio = R0 + (1.0 - R0) * (1.0 - cosFi)^5
-            
-            reflect_ratio *= reflectBoost #ta dodatek pojaca barvo osdibte svetlobe
-            refract_ratio = 1.0 - reflect_ratio
-
-            koef = calcAngle(sun, Objects[objIndex][2], intersectPoint) #to je koeficinet sencenja steklene krogle
-            finalColor = clamp01(reflect_ratio * reflectColor + refract_ratio * refractColor) #zmesamo odbito in zlomljeno barvo
-            tintedFinalColor = multiplyColors(RGB{N0f8}(finalColor), RGB{N0f8}(glassColor * 0.9)) #izracunamo tinted barvo glede na tint stekla
-            finalColor = finalColor * (1-tintIntensity) + tintedFinalColor * tintIntensity #koncni barvi dodamo nekaj tinted barve glede na tintIntensity
-            
-            shadowedFinalColor = finalColor * koef
-
-            finalColor = (1 - shadowIntensity) * finalColor + shadowIntensity * shadowedFinalColor
-            img[x, y] = finalColor
-            continue
-
-        end
+                out_point_index = closestIntersec(ingoingDir, 0.2, 100, intersectPoint)
+                outPoint = out_point_index[1] #to je tocka na objektu iz katerega pride zarek ven
+                outObjIndex = out_point_index[2]
 
 
-        #-------KODA ZA TO CE JE OBJEKT KI GA JE ZADEL ZAREK OGLEDALO--------------------------------------------------------------------------
-        if (!isnothing(intersectPoint) && Objects[objIndex][3] == true) #ce smo zadeli objekt ki je gledalo
-            mirrorIntersect = intersectPoint #tocka na ogledalu
-            mirrorIndex = objIndex #indeks ogledala
-            bouncedRay = reflectRay(ray, intersectPoint, Objects[objIndex][2])
-            bounced_point_index = closestIntersec(bouncedRay, 0.1, 10, intersectPoint)
-            intersectPoint = bounced_point_index[1]
-            objIndex = bounced_point_index[2]
-            
-            mirrorKoef = calcAngle(sun, Objects[mirrorIndex][2], mirrorIntersect) #to je koef za osvetlitev objekta ki je ogledalo
+                if (Objects[objIndex][1](outPoint) > 1)
+                    println("outTocka ni na krogli-----------------------------------")
+                end
 
-            if (isnothing(intersectPoint))  #ce zarek od objekta ni nikjer pristal (je zadel nebo)
-                #barva je sestavljena iz barve neba + barva ogledala
-                img[x, y] = clamp01.(bg_color*reflectivity + Objects[mirrorIndex][4]*mirrorKoef*(1-reflectivity))
+                outgoingDir = refractRay(ingoingDir, ratio, outPoint, Objects[outObjIndex][2])
+                if (isnothing(ingoingDir)) #ce se zarek ne more refraktat
+                    img[y, x] = reflectColor
+                    continue
+                end
+                point_index2 = closestIntersec(outgoingDir, 0.5, 40, outPoint)
+                intersectPoint2 = point_index2[1]
+                objIndex2 = point_index2[2]
+
+                refractColor = bg_color #ce ne zadanemo nobenega objekta bo refraktna barva barva ozadja, drugace pa barva objekta
+                if (!isnothing(intersectPoint2))
+                    lightFactor = calcAngle(lightSources, Objects[objIndex2][2], intersectPoint2, objIndex2)
+                    refractColor = multiplyColors(Objects[objIndex2][4], lightFactor)
+                end
+
+                
+                #zdaj pa je treba pravilno zdruziti ti dve barvi v koncen output (neka random formula ko sm jo najdel)
+                normala = normalize(vec(Objects[objIndex][2](intersectPoint)))
+                ingoingDir = normalize(ingoingDir)
+                cosFi = clamp(dot(-ingoingDir, normala), 0.0, 1.0)
+                R0 = ((glassIOR - 1.0) / (glassIOR + 1.0))^2
+                reflect_ratio = R0 + (1.0 - R0) * (1.0 - cosFi)^5
+                
+                reflect_ratio *= reflectBoost #ta dodatek pojaca barvo osdibte svetlobe
+                refract_ratio = 1.0 - reflect_ratio
+
+                lightFactor = calcAngle(lightSources, Objects[objIndex][2], intersectPoint, objIndex) #to je koeficinet sencenja steklene krogle
+                finalColor = clamp01(reflect_ratio * reflectColor + refract_ratio * refractColor) #zmesamo odbito in zlomljeno barvo
+                tintedFinalColor = multiplyColors(RGB{N0f8}(finalColor), RGB{N0f8}(glassColor * 0.9)) #izracunamo tinted barvo glede na tint stekla
+                finalColor = finalColor * (1-tintIntensity) + tintedFinalColor * tintIntensity #koncni barvi dodamo nekaj tinted barve glede na tintIntensity
+                
+                shadowedFinalColor = multiplyColors(finalColor, lightFactor)
+
+                finalColor = (1 - shadowIntensity) * finalColor + shadowIntensity * shadowedFinalColor
+                img[y, x] = finalColor
                 continue
 
-            else   #ce smo od ogledala se odbili in zadeli nek objekt
-                koef = calcAngle(sun, Objects[objIndex][2], intersectPoint) #koefcient za osvetltev objekta v katerega smo se odbili
-                #barva pixla bo 80% objekta in 20% od ogledala
-                pixelColor = clamp01.(Objects[objIndex][4] * reflectivity * koef + Objects[mirrorIndex][4] * (1-reflectivity) * mirrorKoef)
-                img[x, y] = pixelColor
-                continue
-            
             end
-        end
-        #-------------------------------------------------------------------------------------------------------------------------------------
 
-        if (!isnothing(intersectPoint)) #ce imamo presecisce risemo barvo
+            #-------KODA ZA TO CE JE OBJEKT KI GA JE ZADEL ZAREK OGLEDALO--------------------------------------------------------------------------
+            if (Objects[objIndex][3] == true) #ce smo zadeli objekt ki je gledalo
+                mirrorIntersect = intersectPoint #tocka na ogledalu
+                mirrorIndex = objIndex #indeks ogledala
+                bouncedRay = reflectRay(ray, intersectPoint, Objects[objIndex][2])
+                bounced_point_index = closestIntersec(bouncedRay, 0.1, 10, intersectPoint)
+                intersectPoint = bounced_point_index[1]
+                objIndex = bounced_point_index[2]
+                
+                mirrorLightFactor = calcAngle(lightSources, Objects[mirrorIndex][2], mirrorIntersect, mirrorIndex) #to je koef za osvetlitev objekta ki je ogledalo
+
+                if (isnothing(intersectPoint))  #ce zarek od objekta ni nikjer pristal (je zadel nebo)
+                    #barva je sestavljena iz barve neba + barva ogledala
+                    bgMirrorColor = multiplyColors(Objects[mirrorIndex][4], mirrorLightFactor) * (1-reflectivity)
+                    img[y, x] = clamp01.(bg_color*reflectivity + bgMirrorColor)
+                    continue
+
+                else   #ce smo od ogledala se odbili in zadeli nek objekt
+                    lightFactor = calcAngle(lightSources, Objects[objIndex][2], intersectPoint, objIndex) #koefcient za osvetltev objekta v katerega smo se odbili
+                    #barva pixla bo 80% objekta in 20% od ogledala
+                    objColor = multiplyColors(Objects[objIndex][4], lightFactor) * reflectivity
+                    mirrorColor = multiplyColors(Objects[mirrorIndex][4], mirrorLightFactor) * (1-reflectivity)
+                    pixelColor = clamp01.(objColor + mirrorColor)
+                    img[y, x] = pixelColor
+                    continue
+                
+                end
+            end
+
+            #------KODA CE JE OBJEKT NI ODBOJEN NITI PROSOJEN---------------------------------------------------------------------------------------------
             #najdi kot med normalo in izvirom svetlobe
-            koef = calcAngle(sun, Objects[objIndex][2], intersectPoint)
+            lightFactor = calcAngle(lightSources, Objects[objIndex][2], intersectPoint, objIndex)
             
             #addColor = difuseColor(intersectPoint, Objects[objIndex][1], Objects[objIndex][2])
             #color += addColor
 
             #koef = min(koef, 1); koef = max(0, koef) #popravek za barvo ce je manj od 0 ali vec od 1 -- mislim da ne rabimo
-            img[x, y] = Objects[objIndex][4]*koef
+            img[y, x] = multiplyColors(Objects[objIndex][4], lightFactor)
         end
         
         
     end
 end
+
 println("done")
-save("test2.png", img)
+save("test3.png", img)
 
