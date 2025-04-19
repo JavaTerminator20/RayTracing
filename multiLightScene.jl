@@ -8,8 +8,8 @@ CameraResolution = [200;150]#[800;600]
 #LIGHT SOURCE aka SUN
 lightSources = [
     #[-50.0, 100.0, 200.0],
-    [4.0, -2.5, 5.0],
-    [4.0, 2.5, 5.0]
+    [4.0, -3, 5.0],
+    [4.0, 3, 5.0]
 ]
 #lightSources = [5.0, 0.0, 3.0]
 lightColor = [RGB{N0f8}(1, 0, 0),RGB{N0f8}(0, 0, 1), RGB{N0f8}(0, 1, 0)]
