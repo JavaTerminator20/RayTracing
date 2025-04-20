@@ -3,7 +3,7 @@ CameraRotation = [0;0;0]
 CameraPosition = [0;0;0]
 CameraFOV = 90
 CameraAspectRatio = [4;3]
-CameraResolution = [800;600]  #[800;600]
+CameraResolution = [1600;1200]  #[800;600]
 
 #LIGHT SOURCE aka SUN
 lightSources = [
@@ -12,6 +12,7 @@ lightSources = [
     #[3.0, -6.0, 0.0]
 ]
 #lightSources = [5.0, 0.0, 3.0]
+lightPower = [100]
 lightColor = [RGB{N0f8}(1, 1, 1),RGB{N0f8}(1, 1, 1), RGB{N0f8}(0, 1, 0)]
 #sun = [-6.0, -15.0, -15.0]   
 

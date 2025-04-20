@@ -7,9 +7,9 @@ using Colors
 #IMPORT SCENE
 #include("./mirrorScene.jl")
 #include("./mirrorScene2.jl")
-include("./torusScene.jl")
+#include("./torusScene.jl")
 #include("./multiLightScene.jl")
-#include("./ifiniteMirrorScene.jl")
+include("./ifiniteMirrorScene.jl")
 
 Pixels = [zeros(3) for i in 1:CameraResolution[1], j in 1:CameraResolution[2]]
 
@@ -52,10 +52,7 @@ function signChange(f, vec, origin = [0.0, 0.0, 0.0], step = 0.3, max = 40)
     #dobimo dejanski vektor z upostevanjem zacetne tocke
     start = vec .* k .+ origin 
     prev = sign(f(start))
-    if (f == Sphere1)
-        #println(prev)
-        #println(f((k.*vec) .+ origin))
-    end
+
 
     for outer k in k:step:max
         now = sign(f((k.*vec) .+ origin))
@@ -76,9 +73,10 @@ function calcAngle(sun, gradient, pointOnSphere, objIndex, shadowModifier)
     
     stVirov = size(lightSources)[1]
     factor = 1/stVirov #kako mocen bo vsak vir
-
+    powerFactors = []
 
     #factor = 0.8
+    i = 1
     koeficienti = []
     for sun in lightSources
         #CE JE SONCE TOCKA
@@ -89,6 +87,10 @@ function calcAngle(sun, gradient, pointOnSphere, objIndex, shadowModifier)
 
         #preveri ce na poti od tocke na objektu do vira svetlobe zadanes objekt - PREVERJANJE SENCE
         razdaljaDoSonca = norm(pointOnSphere .- sun)
+        vrednost = (lightPower[i] / razdaljaDoSonca)^1.2
+        push!(powerFactors, vrednost)
+        i += 1
+
         point_index = closestIntersec(vecToSun/4, 1.2, 4*razdaljaDoSonca, pointOnSphere) #za faktor 4 se je vse zamaknilo, zato ker...
         #ce je nek objekt zelo blizu tal, potem bo vecToSun iz podlage kazal skozi ta objekt in nasli bomo napacno presecisce
         intersecPoint = point_index[1]
@@ -114,8 +116,9 @@ function calcAngle(sun, gradient, pointOnSphere, objIndex, shadowModifier)
 
     rezultat = RGB{N0f8}(0, 0, 0)
     n = length(koeficienti)
+    
     for i in 1:1:n
-        rezultat = clamp01(rezultat + lightColor[i] * factor * koeficienti[i])
+        rezultat = clamp01(rezultat + lightColor[i]  * koeficienti[i])
     end
 
     return clamp01(rezultat)
@@ -244,7 +247,7 @@ function mirrorBounceColor(ray, objIndex, pointOnObj, bounces, reflectivity, spe
         mirrorLightFactor = calcAngle(lightSources, Objects[objIndex][2], pointOnObj, objIndex, shadowModifier)
         mirrorColor = multiplyColors(Objects[objIndex][4], mirrorLightFactor)
         bounceRay = reflectRay(ray, pointOnObj, Objects[objIndex][2])
-        point_index = closestIntersec(bounceRay/800, 800.0, 18000, pointOnObj)
+        point_index = closestIntersec(bounceRay/1000, 10.0, 40000, pointOnObj)
         intersectPt = point_index[1]
         intersectObjIndex = point_index[2]
         if (isnothing(intersectPt)) #ce odbit zarek ne zadane nicesar vrnemo barvo ozadja + barvo ogledala
@@ -265,9 +268,10 @@ end
 shadowModifier = 7 #manjsi kot je shadowModifier, bolj svetla bo senca
 
 #parametri za SpecularLight
-specularIntensity = 0.75
-specularArea = 12
+specularIntensity = 0.7
+specularArea = 15  #vecja cifra, manjsa povrsina
 
+#parametri za MIRROR
 reflectivity = 0.8 #koliko barve odbije ogledalo.  0 = matte barva; 1 = glossy (fully reflective)
 
 #tej parametri vplivajo na steklo
@@ -397,5 +401,5 @@ for x in 1:1:CameraResolution[1]
 end
 
 println("done")
-save("test3.png", img)
+save("infiniteMirror.png", img)
 
