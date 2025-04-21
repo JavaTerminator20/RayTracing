@@ -14,10 +14,9 @@ lightSources = [
     [0, 7, 3],
     [0, -7, 3]
 ]
-#lightSources = [5.0, 0.0, 3.0]
 lightColor = [RGB{N0f8}(1, 0, 0),RGB{N0f8}(0, 0, 1), RGB{N0f8}(1, 0, 0), RGB{N0f8}(0, 0, 1)]
 lightPower = [3, 3, 3, 3]
-#sun = [-6.0, -15.0, -15.0]   
+
 
 #SCENE OBJECTS AND THEIR DERIVATIVES
 s1P = [10.0, 0.0, 2.0, 4.0] #light blue sphere
@@ -65,7 +64,7 @@ Objects = [
     # [Sphere1, GradS1, true, RGB{N0f8}(0.5,0.5,0.5), false],  #RGB{N0f8}(0,0.69,0.63)
     # [Sphere2, GradS2, false, RGB{N0f8}(1,0,0), false],           #RGB{N0f8}(1,0,0)
     # [Sphere3, GradS3, false, RGB{N0f8}(0,1,0), false],
-    [Sphere4, GradS4, false, RGB{N0f8}(1.0, 1.0, 1.0), false], 
+    [Sphere4, GradS4, false, RGB{N0f8}(1, 1, 1), false], 
     [Plane1, GradP1, false, RGB{N0f8}(1,1,1), false],
     [Plane2, GradP2, false, RGB{N0f8}(1,1,1), false],
     [Plane3, GradP3, false, RGB{N0f8}(1,1,1), false],

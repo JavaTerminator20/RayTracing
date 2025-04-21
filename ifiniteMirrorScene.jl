@@ -3,7 +3,7 @@ CameraRotation = [0;0;0]
 CameraPosition = [0;0;0]
 CameraFOV = 90
 CameraAspectRatio = [4;3]
-CameraResolution = [1600;1200]  #[800;600]
+CameraResolution = [100;75]  #[800;600]
 
 #LIGHT SOURCE aka SUN
 lightSources = [

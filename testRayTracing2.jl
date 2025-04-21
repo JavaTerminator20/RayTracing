@@ -7,9 +7,12 @@ using Colors
 #IMPORT SCENE
 #include("./mirrorScene.jl")
 #include("./mirrorScene2.jl")
-#include("./torusScene.jl")
+include("./torusScene.jl")
+#include("./torusScene2.jl")
 #include("./multiLightScene.jl")
-include("./ifiniteMirrorScene.jl")
+#include("./ifiniteMirrorScene.jl")
+#include("./funcScene.jl")
+#include("./simpleScene.jl")
 
 Pixels = [zeros(3) for i in 1:CameraResolution[1], j in 1:CameraResolution[2]]
 
@@ -53,12 +56,11 @@ function signChange(f, vec, origin = [0.0, 0.0, 0.0], step = 0.3, max = 40)
     start = vec .* k .+ origin 
     prev = sign(f(start))
 
-
     for outer k in k:step:max
         now = sign(f((k.*vec) .+ origin))
-
         if now != prev
-            return [((k-step).*vec) .+ origin, (k.*vec) .+ origin]
+            #return k - step/2 #vrnemo vmesno vrednost raztega (povprecje tock ko se zamenja predznak)
+            return [(k - step/2), (((k-step).*vec) .+ origin), ((k.*vec) .+ origin)]
         end
         prev = now;
     end
@@ -118,7 +120,7 @@ function calcAngle(sun, gradient, pointOnSphere, objIndex, shadowModifier)
     n = length(koeficienti)
     
     for i in 1:1:n
-        rezultat = clamp01(rezultat + lightColor[i]  * koeficienti[i])
+        rezultat = clamp01(rezultat + lightColor[i] * powerFactors[i] * koeficienti[i])
     end
 
     return clamp01(rezultat)
@@ -130,19 +132,74 @@ function SpecularLight(objIndex, pointOnObj, G, vecToCamera, shineIntensity, shi
         return RGB{N0f8}(0, 0, 0)
     end
     vecToCamera = normalize(vecToCamera)
+    lightSrcColor = RGB{N0f8}(0, 0, 0) #sestevek barv vseh virov svetlobe
 
     koef = 0
+    i = 1
     for sun in lightSources
         lightVector = normalize(sun - pointOnObj) #vektor od objekta do vira svetlobe
         reflectedLight = reflectRay(lightVector, pointOnObj, G)
         shininess = shineArea  #vecja cifra pomeni manj specular svetlobe
         
         koef += max(dot(vecToCamera, reflectedLight), 0) ^ shininess
+
+        lightSrcColor += lightColor[i] * koef
+        i += 1
     end
     koef = clamp01(koef)
-    return RGB{N0f8}(1, 1, 1) * (koef * shineIntensity)
+    #return RGB{N0f8}(1,1,1) * (koef * shineIntensity) #ne upostevamo barve svetlobe pri genereranju specular svetlobe
+    return lightSrcColor * (koef * shineIntensity) # upostevamo barvo svetlobe pri genereranju specular svetlobe
 end
 
+function newton(F, JF, X0; tol = 1e-6, maxit = 30)
+    # set two variables which will be used (also) outside the for loop
+    X = X0
+    n = 1
+    # first evaluation of F
+    Y = F(X)
+    if (abs(Y) < tol)
+        return X
+    end
+    for outer n = 1:maxit
+        # execute one step of Newton's iteration
+        X = X0 -  JF(X0)\Y
+        Y = F(X)
+        # check if the result is within prescribed tolerance
+        if abs(Y) < tol
+            break
+        end
+        # otherwise repeat
+        X0 = X
+    end
+
+    # a warning if maxit was reached
+    if n == maxit
+        #println("no convergence after $maxit iterations")
+        return -1
+        
+    end
+    # let's return a named tuple
+    return X
+
+end
+
+function newtonPoint(ray, origin, t, objIndex, approxPt1, approxPt2) 
+    #t je priblizna vrednost raztega vektorja ray, kjer se nahaja dejanski collision
+    F = Objects[objIndex][1]
+    G = Objects[objIndex][2]
+    
+    GFunc(t) = F((ray .*t) .+ origin) #to je parametrizirana F funkcija (paramter t je razteg vektorja iz kamere)
+    dg(t) = dot(ray, G((ray .*t) .+ origin))
+    
+    param = newton(GFunc,dg,t)  #param je razteg osnovnega vektorja (ray) da dobimo tocno tocko
+    if param == -1 #ce newtonova metoda ni konvergirala vrni osnovni priblizek
+        point = Bisection(approxPt1, approxPt2, F)
+        return point
+    end
+
+    point = (ray .*param) .+ origin
+    return point
+end
 
 function Bisection(point1, point2, F, maxit = 1000, tol=1e-6)
     #zamenjavo tock point1 in point2 naredimo zato, ker je bisekcija napisana tako da
@@ -171,22 +228,27 @@ function Bisection(point1, point2, F, maxit = 1000, tol=1e-6)
 end
 
 
-function closestIntersec(direction, step = 0.1, maxD = 60, origin = [0, 0, 0])
+function closestIntersec(ray, step = 0.1, maxD = 60, origin = [0, 0, 0])
     distFromOrigin = 100000.0
     closestPoint = nothing
     #loop cez vse objekte da najdes najblizjega s katerim imamo intersection
     objIndex = 1
     returnIndex = -1
     for object in Objects
-        twoApproxPts = signChange(object[1], direction, origin, step, maxD) #dobimo dve tocki, ena je pred objektom, druga v objektu
-        if (twoApproxPts != -1) 
-            #println("nasli signChange pri objektu: $(object[1])")
+        t_P1_P2 = signChange(object[1], ray, origin, step, maxD) #dobimo priblizni razteg vektorja
+        approxT = t_P1_P2[1]
+        approxVec = (ray .* approxT) .+ origin
+        #twoApproxPts = signChange(object[1], ray, origin, step, maxD) #dobimo dve tocki, ena je pred objektom, druga v objektu
+        if (approxT != -1) 
+            approxPt1 = t_P1_P2[2]
+            approxPt2 = t_P1_P2[3]
             #sem pridemo ce obstaja presecisce
-            if (norm(twoApproxPts[1] .- origin) < distFromOrigin) #ce najdemo objekt ki je blizje izhodiscu, potem njega izrisemo (obarvamo)
-                distFromOrigin = norm(twoApproxPts[1] .- origin)
-                closestPoint = Bisection(twoApproxPts[1], twoApproxPts[2], object[1]) #bolj tocno izracunano presecisce
+            if (norm(approxVec .- origin) < distFromOrigin) #ce najdemo objekt ki je blizje izhodiscu, potem njega izrisemo (obarvamo)
+                distFromOrigin = norm(approxVec .- origin)
+                #closestPoint = Bisection(twoApproxPts[1], twoApproxPts[2], object[1]) #bolj tocno izracunano presecisce
+                closestPoint = newtonPoint(ray, origin, approxT, objIndex, approxPt1, approxPt2)
                 returnIndex = objIndex
-                #println("nov najbliji je: $(objIndex) z razdaljo $(distFromOrigin)")
+
             end
         end
 
@@ -247,7 +309,7 @@ function mirrorBounceColor(ray, objIndex, pointOnObj, bounces, reflectivity, spe
         mirrorLightFactor = calcAngle(lightSources, Objects[objIndex][2], pointOnObj, objIndex, shadowModifier)
         mirrorColor = multiplyColors(Objects[objIndex][4], mirrorLightFactor)
         bounceRay = reflectRay(ray, pointOnObj, Objects[objIndex][2])
-        point_index = closestIntersec(bounceRay/1000, 10.0, 40000, pointOnObj)
+        point_index = closestIntersec(bounceRay, 0.3, 30, pointOnObj)
         intersectPt = point_index[1]
         intersectObjIndex = point_index[2]
         if (isnothing(intersectPt)) #ce odbit zarek ne zadane nicesar vrnemo barvo ozadja + barvo ogledala
@@ -268,8 +330,8 @@ end
 shadowModifier = 7 #manjsi kot je shadowModifier, bolj svetla bo senca
 
 #parametri za SpecularLight
-specularIntensity = 0.7
-specularArea = 15  #vecja cifra, manjsa povrsina
+specularIntensity = 0.76 #kako mocna bo tista svetla pika
+specularArea = 20  #vecja cifra, manjsa povrsina
 
 #parametri za MIRROR
 reflectivity = 0.8 #koliko barve odbije ogledalo.  0 = matte barva; 1 = glossy (fully reflective)
@@ -401,5 +463,5 @@ for x in 1:1:CameraResolution[1]
 end
 
 println("done")
-save("infiniteMirror.png", img)
+save("test3.png", img)
 

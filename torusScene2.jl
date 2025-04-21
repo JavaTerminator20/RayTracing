@@ -4,18 +4,18 @@ CameraRotation = [0;0;0]
 CameraPosition = [0;0;0]
 CameraFOV = 90
 CameraAspectRatio = [4;3]
-CameraResolution = [400;300]#[800;600]
+CameraResolution = [100;75]#[800;600]
 
 #LIGHT SOURCE aka SUN
 
 lightSources = [
-    [-120.0, 300.0, 400.0],
-    [-120.0, -80.0, 400.0],
+    [-12.0, 30.0, 40.0],
+    [-12.0, -8.0, 40.0],
     #[3.0, -6.0, 0.0]
 ]
-#lightSources = [5.0, 0.0, 3.0]
+
 lightColor = [RGB{N0f8}(1, 1, 1),RGB{N0f8}(1, 1, 1), RGB{N0f8}(0, 1, 0)]
-#sun = [-6.0, -15.0, -15.0]   
+lightPower = [20, 20]
 
 #SCENE OBJECTS AND THEIR DERIVATIVES
 s1P = [10.0, 0.0, 2.0, 4.0] #light blue sphere
@@ -45,6 +45,12 @@ GradT1(X) = [4 * (X[1] - t1P[1]) * ((X[1] - t1P[1])^2 + (X[2] - t1P[2])^2 + (X[3
 Plane1(X) = X[1]*0 + X[2]*0 + X[3]*1 + 3
 GradP1(X) = [0 0 1]
 
+v1 = [0, 0, 1]
+v2 = [0, 1, 0]
+n2 = cross(v1, v2)
+Plane2(X) = X[1]*1 + X[2]*0 + X[3]*0 - 20
+GradP2(X) = [-1, 0, 0]
+
 # x+forward, y+down, z+left
 #objects je sestavljen tako: [Funkcija, Gradient, isReflective. color, isPassThrough]
 Objects = [
@@ -53,6 +59,7 @@ Objects = [
     # [Sphere3, GradS3, false, RGB{N0f8}(0,1,0), false],
     [Sphere4, GradS4, false, RGB{N0f8}(1.0, 0.0, 1.0), false], 
     [Plane1, GradP1, false, RGB{N0f8}(1,1,1), false],
+    [Plane2, GradP2, false, RGB{N0f8}(0.5,0,1), false],
     [Torus1, GradT1, false, RGB{N0f8}(0,1,1), false]
 ]
-mattObjects = [2]
+mattObjects = [3]
