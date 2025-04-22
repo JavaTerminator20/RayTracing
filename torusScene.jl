@@ -11,11 +11,11 @@ CameraResolution = [200;150]#[800;600]
 lightSources = [
     [13, -7, 6],
     [13, 7, 6],
-    [0, 7, 3],
-    [0, -7, 3]
+    [4, 7.5, 3],
+    [4, -7.5, 3]
 ]
 lightColor = [RGB{N0f8}(1, 0, 0),RGB{N0f8}(0, 0, 1), RGB{N0f8}(1, 0, 0), RGB{N0f8}(0, 0, 1)]
-lightPower = [3, 3, 3, 3]
+lightPower = [400, 400, 1200, 1200]
 
 
 #SCENE OBJECTS AND THEIR DERIVATIVES
@@ -46,16 +46,16 @@ GradT1(X) = [4 * (X[1] - t1P[1]) * ((X[1] - t1P[1])^2 + (X[2] - t1P[2])^2 + (X[3
 Plane1(X) = X[1]*0 + X[2]*0 + X[3]*1 + 6 #SPODI
 GradP1(X) = [0 0 1]
 
-Plane2(X) = X[1]*1 + X[2]*0 + X[3]*0 - 15 #SPREDI
+Plane2(X) = -X[1]*1 + X[2]*0 + X[3]*0 + 15 #SPREDI
 GradP2(X) = [-1 0 0]
 
 Plane3(X) = X[1]*0 + X[2]*1 + X[3]*0 + 10 #LEVO
 GradP3(X) = [0 1 0]
 
-Plane4(X) = X[1]*0 + X[2]*1 + X[3]*0 - 10 #DESNO
+Plane4(X) = X[1]*0 - X[2]*1 + X[3]*0 + 10 #DESNO
 GradP4(X) = [0 -1 0]
 
-Plane5(X) = X[1]*0 + X[2]*0 + X[3]*1 - 8 #ZGORI
+Plane5(X) = X[1]*0 + X[2]*0 - X[3]*1 + 8 #ZGORI
 GradP5(X) = [0 0 -1]
 
 # x+forward, y+down, z+left

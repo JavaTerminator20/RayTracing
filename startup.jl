@@ -57,10 +57,10 @@ CameraFOV = 90
 CameraAspectRatio = [4;3]
 CameraResolution = CameraAspectRatio.*100 #[800;600]
 
-#include("krofScene.jl"); 
+include("krofScene.jl"); 
 #include("mirrorScene.jl");
 #include("glassBallScene.jl");
-include("simpleScene.jl")
+#include("simpleScene.jl")
 
 NumberOfObjects = size(Objects)[1] -1
 
