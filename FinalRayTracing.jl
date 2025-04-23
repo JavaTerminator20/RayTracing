@@ -3,6 +3,7 @@ using LinearAlgebra
 #using StaticArrays
 using Images, ColorTypes, FileIO
 using Colors
+using ProgressMeter
 
 #IMPORT SCENE
 #include("./mirrorScene.jl")
@@ -89,7 +90,7 @@ function calcAngle(sun, gradient, pointOnSphere, objIndex, shadowModifier)
 
         #preveri ce na poti od tocke na objektu do vira svetlobe zadanes objekt - PREVERJANJE SENCE
         razdaljaDoSonca = norm(pointOnSphere .- sun)
-        vrednost = (lightPower[i] / razdaljaDoSonca)^1.2
+        vrednost = lightPower[i] / (4*pi^2 *(razdaljaDoSonca)^2)
         push!(powerFactors, vrednost)
         i += 1
 
@@ -237,17 +238,19 @@ function closestIntersec(ray, step = 0.1, maxD = 60, origin = [0, 0, 0])
     for object in Objects
         t_P1_P2 = signChange(object[1], ray, origin, step, maxD) #dobimo priblizni razteg vektorja
         approxT = t_P1_P2[1]
-        approxVec = (ray .* approxT) .+ origin
-        #twoApproxPts = signChange(object[1], ray, origin, step, maxD) #dobimo dve tocki, ena je pred objektom, druga v objektu
-        if (approxT != -1) 
+
+        if (approxT != -1)
+            #sem pridemo ce obstaja presecisce 
             approxPt1 = t_P1_P2[2]
             approxPt2 = t_P1_P2[3]
-            #sem pridemo ce obstaja presecisce
-            if (norm(approxVec .- origin) < distFromOrigin) #ce najdemo objekt ki je blizje izhodiscu, potem njega izrisemo (obarvamo)
-                distFromOrigin = norm(approxVec .- origin)
-                #closestPoint = Bisection(twoApproxPts[1], twoApproxPts[2], object[1]) #bolj tocno izracunano presecisce
-                closestPoint = newtonPoint(ray, origin, approxT, objIndex, approxPt1, approxPt2)
+
+            #closestPoint = Bisection(approxPt1, approxPt2, object[1]) #bolj tocno izracunano presecisce
+            intersectPt = newtonPoint(ray, origin, approxT, objIndex, approxPt1, approxPt2)
+
+            if (norm(intersectPt .- origin) < distFromOrigin) #ce najdemo objekt ki je blizje izhodiscu, potem njega izrisemo (obarvamo)
+                distFromOrigin = norm(intersectPt .- origin)
                 returnIndex = objIndex
+                closestPoint = intersectPt
 
             end
         end
@@ -317,7 +320,6 @@ function mirrorBounceColor(ray, objIndex, pointOnObj, bounces, reflectivity, spe
             return clamp01.(bg_color*reflectivity + bgMirrorColor)
 
         else #ce zadanemo nek objekt
-            reflectedSun = reflectPoint(sun, pointOnObj, Objects[objIndex][2])
             objectColor = mirrorBounceColor(bounceRay, intersectObjIndex, intersectPt, bounces-1, reflectivity, specularIntensity, specularArea, sun)
             finalColor = clamp01.((1-reflectivity) * mirrorColor + reflectivity * objectColor)
             return finalColor
@@ -345,23 +347,12 @@ shadowIntensity = 0.4   #kako intenzivno je steklena krogla sencena
 reflectBoost = 4  #vecja kot je vrednost, bolj bo intenzivna bara odseva in manj intenzivna barva ki se dobi z lamanjem
 
 #DEJANSKI LOOP KI OBARVA VSAK PIXEL
-counter = 0
-stVsehPixl = CameraResolution[1] * CameraResolution[2]
-percent = stVsehPixl / 100
-prcntCounter = 1
 println("drawing image")
-for x in 1:1:CameraResolution[1]
+@showprogress 1 "Slika: " for x in 1:1:CameraResolution[1]
     for y in 1:1:CameraResolution[2]
-        global counter, prcntCounter
-        counter += 1
-        if (counter % percent == 0)
-            println("$(prcntCounter)%")
-            prcntCounter += 1
-        end
-
         ray = Pixels[x, y]
 
-        point_index = closestIntersec(ray, 0.1, 40)
+        point_index = closestIntersec(ray, 0.5, 40)
         intersectPoint = point_index[1]
         objIndex = point_index[2]
         
