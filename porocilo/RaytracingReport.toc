@@ -1,0 +1,3 @@
+\contentsline {chapter}{\numberline {1}Ray-Tracing implementation}{1}{}%
+\contentsline {section}{\numberline {1.1}Drawing the rays}{1}{}%
+\contentsline {section}{\numberline {1.2}Coloring pixels}{2}{}%
